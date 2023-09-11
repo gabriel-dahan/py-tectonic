@@ -4,8 +4,6 @@ import itertools
 import numpy as np
 import copy
 
-from pprint import pprint
-
 class Cell(object):
 
     def __init__(self, group: int, value: int = None) -> None:
@@ -30,14 +28,14 @@ class Tectonic(object):
 
     def extract_cells(self) -> List[Cell]:
         cells = []
-        with open(self.config, 'r') as fp:
+        with open(self.config.absolute(), 'r') as fp:
             raw = fp.readlines()
             for line in raw:
                 cells += [Cell(int(arg[0]), int(arg[1]) or None) for arg in line.split(',')]
         return cells
     
     def extract_matrix(self) -> List[List[int]]:
-        with open(self.config, 'r') as fp:
+        with open(self.config.absolute(), 'r') as fp:
             return [
                 [Cell(int(arg[0]), int(arg[1]) or None) for arg in line.split(',')] 
                     for line in fp.readlines()
@@ -94,12 +92,13 @@ class Tectonic(object):
         return True
     
     def solution(self) -> List[List[int]]:
+        sols = []
         for grid in self.grid_permutations():
             grid = [list(line) for line in grid]
             if self.is_solution(list(grid)):
-                return list(grid)
-        return None
+                sols.append(list(grid))
+        return sols
 
 if __name__ == '__main__':
-    t = Tectonic('configs/1.tectonic')
-    pprint(t.solution())
+    t = Tectonic('configs/conf.tec')
+    print(t.solution())
