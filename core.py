@@ -1,71 +1,36 @@
-from typing import Union, List, Tuple
+from typing import Union, List
 from pathlib import Path
 import itertools
 import numpy as np
 import copy
 
-class Cell(object):
-
-    def __init__(self, group: int, value: int = None) -> None:
-        self.group = group
-        self.value = value
-
-    def __str__(self) -> str:
-        return f'Cell(group: {self.group}, value: {self.value})'
-    
-    def __repr__(self) -> str:
-        return str(self)
+from _types import Cell, Matrix
+from configs import TectonicConfig
 
 class Tectonic(object):
 
-    def __init__(self, config: Union[Path, str]) -> None:
-        if isinstance(config, str):
-            config = Path(config)
-        self.config = config
-        self.cells = self.extract_cells()
-        self.asserts()
-        self.grid = self.extract_matrix()
+    def __init__(self, config: Union[Union[str, Path], TectonicConfig]) -> None:
+        if not isinstance(config, TectonicConfig):
+            config = TectonicConfig(Path(config))
 
-    def extract_cells(self) -> List[Cell]:
-        cells = []
-        with open(self.config.absolute(), 'r') as fp:
-            raw = fp.readlines()
-            for line in raw:
-                cells += [Cell(int(arg[0]), int(arg[1]) or None) for arg in line.split(',')]
-        return cells
-    
-    def extract_matrix(self) -> List[List[int]]:
-        with open(self.config.absolute(), 'r') as fp:
-            return [
-                [Cell(int(arg[0]), int(arg[1]) or None) for arg in line.split(',')] 
-                    for line in fp.readlines()
-            ]
-    
-    def get_groups(self) -> set:
-        return {cell.group for cell in self.cells}
-    
-    def get_group_values(self, group: int) -> List[int]:
-        assert group in self.get_groups()
-        return [cell.value for cell in filter(lambda cell : cell.group == group, self.cells)]
-    
-    def asserts(self) -> None:
-        for group in self.get_groups():
-            group_values = [value for value in self.get_group_values(group) if value]
-            assert sorted(group_values) == list(set(group_values)), f'Values are not unique in group [{group}].'
+        self.tec = config
+
+        self.cells = self.tec.extract_cells()
+        self.matrix = self.tec.extract_matrix()
 
     def group_permutations(self, group: int) -> List[List[int]]:
-        values = self.get_group_values(group)
+        values = [cell.value for cell in self.tec.get_group_cells(group)]
         indicated = [(values.index(val), val) for val in values if val]
         return [list(perm) for perm in itertools.permutations(range(1, len(values) + 1)) if all(perm[i] == v for i, v in indicated)]
     
     def groups_permutations(self) -> itertools.product:
-        groups_permutations = [self.group_permutations(group) for group in self.get_groups()]
+        groups_permutations = [self.group_permutations(group) for group in self.tec.get_groups_nbs()]
         return [list(perm) for perm in itertools.product(*groups_permutations)]
     
-    def groups_to_grid(self, groups_permutation: List[List[int]]) -> List[List[int]]:
+    def groups_to_grid(self, groups_permutation: List[List[int]]) -> Matrix:
         gp = copy.deepcopy(groups_permutation)
         grid = []
-        for line in self.grid:
+        for line in self.matrix:
             grid_line = []
             for cell in line:
                 grid_line.append(gp[cell.group][0])
@@ -73,10 +38,10 @@ class Tectonic(object):
             grid.append(grid_line)
         return grid
     
-    def grid_permutations(self) -> List[List[List[int]]]:
+    def grid_permutations(self) -> List[Matrix]:
         return [self.groups_to_grid(perm) for perm in self.groups_permutations()]
 
-    def is_solution(self, grid: List[List[int]]) -> bool:
+    def is_solution(self, grid: Matrix) -> bool:
         matrix = np.array(grid)
         for j in range(len(grid)):
             for i in range(len(grid[j])):
@@ -91,7 +56,7 @@ class Tectonic(object):
                     return False
         return True
     
-    def solution(self) -> List[List[int]]:
+    def solution(self) -> Matrix:
         sols = []
         for grid in self.grid_permutations():
             grid = [list(line) for line in grid]
